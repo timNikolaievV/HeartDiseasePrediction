@@ -1,65 +1,44 @@
+
+
 import pandas as pd
-import matplotlib.pyplot as plt
+import numpy as np
+
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 
 df = pd.read_csv("data/heart_cleveland_upload.csv")
+print(df.columns)
 
-print("DF shape:", df.shape)
-print("\nColumn info:")
-print(df.info())
-
-print("\nFirst 5 rows:")
+print("Rows, cols:", df.shape)
 print(df.head())
-
-print("\nMissing values per column:")
-print(df.isna().sum().sort_values(ascending=False))
-
-print("\nSummary statistics (numeric columns):")
+print(df.info())
 print(df.describe())
+print("Missing values per column:\n", df.isna().sum())
 
-num_duplicates = df.duplicated().sum()
-print(f"\nNumber of duplicate rows: {num_duplicates}")
-
-categorical_cols = [
-    "sex",
-    "cp",
-    "fbs",
-    "restecg",
-    "exang",
-    "slope",
-    "ca",
-    "thal",
-    "condition"
-]
-
-print("\nUnique values in categorical columns:")
-for col in categorical_cols:
-    print(f"{col}: {df[col].unique()}")
-
-for col in categorical_cols:
-    if df[col].isna().sum() > 0:
-        mode_val = df[col].mode()[0]
-        df[col].fillna(mode_val, inplace=True)
-        print(f"Filled NaNs in {col} with {mode_val!r}")
+df = df.dropna()
 
 
-for col in categorical_cols:
-    counts = df[col].value_counts()
+X = df.drop("condition", axis=1)
+y = df["condition"]
 
-    plt.figure(figsize=(6, 4))
-    bars = plt.bar(counts.index.astype(str), counts.values)
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42, stratify=y
+)
 
-    for bar in bars:
-        height = bar.get_height()
-        plt.text(
-            bar.get_x() + bar.get_width() / 2,
-            height,
-            str(height),
-            ha='center',
-            va='bottom'
-        )
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
 
-    plt.title(f"Count of Categories in {col}")
-    plt.xlabel(col)
-    plt.ylabel("Number of Patients")
-    plt.tight_layout()
-    plt.show()
+model = KNeighborsClassifier(n_neighbors=5)  # you can tune this
+model.fit(X_train_scaled, y_train)
+
+y_pred = model.predict(X_test_scaled)
+print("Accuracy:", accuracy_score(y_test, y_pred))
+print("Confusion Matrix:\\n", confusion_matrix(y_test, y_pred))
+print("Classification Report:\\n", classification_report(y_test, y_pred))
+
+import joblib
+joblib.dump((model, scaler), "heart_model.pkl")
+print("Model + scaler saved as heart_model.pkl")
